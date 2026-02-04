@@ -1,0 +1,194 @@
+.toast {
+  position: fixed;
+  min-width: 320px;
+  max-width: 400px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  padding: 16px;
+  margin: 10px;
+  z-index: 9999;
+  animation: slideIn 0.3s ease;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  border-left: 4px solid;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.toast-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.toast-icon {
+  font-size: 20px;
+  min-width: 24px;
+  text-align: center;
+}
+
+.toast-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast-title {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 4px;
+  color: #333;
+}
+
+.toast-message {
+  font-size: 14px;
+  color: #666;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.toast-close-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #999;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.toast-close-btn:hover {
+  background-color: #f5f5f5;
+  color: #333;
+}
+
+.toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 0 0 8px 8px;
+  overflow: hidden;
+}
+
+.toast-progress-bar {
+  height: 100%;
+  transition: width 0.1s linear;
+}
+
+/* Position Classes */
+.toast-top-left { top: 20px; left: 20px; }
+.toast-top-center { top: 20px; left: 50%; transform: translateX(-50%); }
+.toast-top-right { top: 20px; right: 20px; }
+.toast-bottom-left { bottom: 20px; left: 20px; }
+.toast-bottom-center { bottom: 20px; left: 50%; transform: translateX(-50%); }
+.toast-bottom-right { bottom: 20px; right: 20px; }
+
+/* Type-specific styles */
+.toast-success {
+  border-left-color: #10b981;
+  background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+}
+
+.toast-error {
+  border-left-color: #ef4444;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+}
+
+.toast-warning {
+  border-left-color: #f59e0b;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%);
+}
+
+.toast-info {
+  border-left-color: #3b82f6;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+}
+
+.toast-bet-placed {
+  border-left-color: #8b5cf6;
+  background: linear-gradient(135deg, #faf5ff 0%, #ede9fe 100%);
+}
+
+.toast-bet-won {
+  border-left-color: #f59e0b;
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+}
+
+.toast-bet-lost {
+  border-left-color: #6b7280;
+  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+}
+
+.toast-deposit {
+  border-left-color: #059669;
+  background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+}
+
+.toast-withdrawal {
+  border-left-color: #0ea5e9;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+}
+
+.toast-bonus {
+  border-left-color: #db2777;
+  background: linear-gradient(135deg, #fdf2f8 0%, #fce7f3 100%);
+}
+
+.toast-match-update {
+  border-left-color: #f97316;
+  background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%);
+}
+
+.toast-action-btn {
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.1);
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  color: #333;
+}
+
+.toast-action-btn:hover {
+  background: rgba(0, 0, 0, 0.15);
+}
+
+/* Animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .toast {
+    min-width: calc(100vw - 40px);
+    max-width: calc(100vw - 40px);
+    margin: 10px;
+  }
+  
+  .toast-top-left,
+  .toast-top-right,
+  .toast-bottom-left,
+  .toast-bottom-right {
+    left: 20px;
+    right: 20px;
+    transform: none;
+  }
+}

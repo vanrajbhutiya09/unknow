@@ -1,0 +1,555 @@
+-- 1. USERS TABLE
+CREATE TABLE users (
+    user_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    phone VARCHAR(15) UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    date_of_birth DATE,
+    address TEXT,
+    city VARCHAR(50),
+    state VARCHAR(50),
+    country VARCHAR(50) DEFAULT 'India',
+    pin_code VARCHAR(10),
+    profile_image VARCHAR(255),
+    kyc_status ENUM('PENDING', 'VERIFIED', 'REJECTED', 'SUBMITTED') DEFAULT 'PENDING',
+    kyc_document_type VARCHAR(50),
+    kyc_document_number VARCHAR(100),
+    account_status ENUM('ACTIVE', 'SUSPENDED', 'CLOSED', 'LOCKED', 'PENDING') DEFAULT 'PENDING',
+    account_tier ENUM('BRONZE', 'SILVER', 'GOLD', 'PLATINUM', 'VIP') DEFAULT 'BRONZE',
+    total_wagered DECIMAL(15, 2) DEFAULT 0.00,
+    total_won DECIMAL(15, 2) DEFAULT 0.00,
+    total_deposits DECIMAL(15, 2) DEFAULT 0.00,
+    total_withdrawals DECIMAL(15, 2) DEFAULT 0.00,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    last_login_at TIMESTAMP,
+    ip_address VARCHAR(45),
+    referral_code VARCHAR(20) UNIQUE,
+    referred_by UUID REFERENCES users(user_id),
+    INDEX idx_email (email),
+    INDEX idx_status (account_status),
+    INDEX idx_created (created_at)
+);
+
+-- 2. WALLET/BALANCE TABLE
+CREATE TABLE wallet (
+    wallet_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+    main_balance DECIMAL(15, 2) DEFAULT 0.00,
+    bonus_balance DECIMAL(15, 2) DEFAULT 0.00,
+    winning_balance DECIMAL(15, 2) DEFAULT 0.00,
+    locked_balance DECIMAL(15, 2) DEFAULT 0.00,
+    total_balance DECIMAL(15, 2) GENERATED ALWAYS AS (main_balance + bonus_balance + winning_balance) STORED,
+    currency VARCHAR(3) DEFAULT 'INR',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE(user_id),
+    INDEX idx_user_wallet (user_id)
+);
+
+-- 3. TRANSACTIONS TABLE
+CREATE TABLE transactions (
+    transaction_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(user_id),
+    wallet_id UUID NOT NULL REFERENCES wallet(wallet_id),
+    transaction_type ENUM('DEPOSIT', 'WITHDRAWAL', 'BET_PLACED', 'BET_WON', 'BET_LOST', 'BET_CANCELLED', 
+                         'BONUS_CREDITED', 'BONUS_EXPIRED', 'REFUND', 'COMMISSION', 'REFERRAL_BONUS') NOT NULL,
+    amount DECIMAL(15, 2) NOT NULL,
+    balance_before DECIMAL(15, 2) NOT NULL,
+    balance_after DECIMAL(15, 2) NOT NULL,
+    transaction_status ENUM('PENDING', 'COMPLETED', 'FAILED', 'CANCELLED', 'PROCESSING') DEFAULT 'PENDING',
+    payment_method VARCHAR(50),
+    payment_gateway VARCHAR(50),
+    gateway_transaction_id VARCHAR(100),
+    gateway_response TEXT,
+    description TEXT,
+    metadata JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    processed_at TIMESTAMP,
+    INDEX idx_user_transactions (user_id),
+    INDEX idx_type_status (transaction_type, transaction_status),
+    INDEX idx_created_date (created_at)
+);
+
+-- 4. SPORTS/CATEGORIES TABLE
+CREATE TABLE sports (
+    sport_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    sport_name VARCHAR(50) NOT NULL,
+    sport_code VARCHAR(10) UNIQUE NOT NULL,
+    display_name VARCHAR(50) NOT NULL,
+    icon_url VARCHAR(255),
+    is_active BOOLEAN DEFAULT TRUE,
+    display_order INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(sport_code)
+);
+
+-- 5. TOURNAMENTS/LEAGUES TABLE
+CREATE TABLE tournaments (
+    tournament_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    sport_id UUID NOT NULL REFERENCES sports(sport_id),
+    tournament_name VARCHAR(100) NOT NULL,
+    tournament_code VARCHAR(20) UNIQUE NOT NULL,
+    display_name VARCHAR(100) NOT NULL,
+    season VARCHAR(20),
+    year INT,
+    country VARCHAR(50),
+    logo_url VARCHAR(255),
+    is_active BOOLEAN DEFAULT TRUE,
+    start_date DATE,
+    end_date DATE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_sport_tournament (sport_id),
+    INDEX idx_active_tournaments (is_active)
+);
+
+-- 6. TEAMS TABLE
+CREATE TABLE teams (
+    team_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    team_name VARCHAR(100) NOT NULL,
+    team_code VARCHAR(20) UNIQUE NOT NULL,
+    display_name VARCHAR(100) NOT NULL,
+    sport_id UUID NOT NULL REFERENCES sports(sport_id),
+    country VARCHAR(50),
+    logo_url VARCHAR(255),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_sport_teams (sport_id)
+);
+
+-- 7. MATCHES TABLE
+CREATE TABLE matches (
+    match_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    external_match_id VARCHAR(50) UNIQUE,
+    tournament_id UUID NOT NULL REFERENCES tournaments(tournament_id),
+    sport_id UUID NOT NULL REFERENCES sports(sport_id),
+    team_a_id UUID NOT NULL REFERENCES teams(team_id),
+    team_b_id UUID NOT NULL REFERENCES teams(team_id),
+    match_title VARCHAR(200) NOT NULL,
+    match_code VARCHAR(50) UNIQUE NOT NULL,
+    match_date TIMESTAMP NOT NULL,
+    venue VARCHAR(100),
+    city VARCHAR(50),
+    country VARCHAR(50),
+    match_status ENUM('SCHEDULED', 'LIVE', 'POSTPONED', 'CANCELLED', 'COMPLETED', 'ABANDONED', 'DELAYED') DEFAULT 'SCHEDULED',
+    current_innings INT DEFAULT 1,
+    toss_winner UUID REFERENCES teams(team_id),
+    toss_decision VARCHAR(20),
+    match_result VARCHAR(500),
+    winner_team_id UUID REFERENCES teams(team_id),
+    is_active BOOLEAN DEFAULT TRUE,
+    betting_open BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_tournament_matches (tournament_id),
+    INDEX idx_match_status (match_status),
+    INDEX idx_match_date (match_date),
+    INDEX idx_betting_open (betting_open)
+);
+
+-- 8. MATCH SCORE TABLE (Real-time updates)
+CREATE TABLE match_scores (
+    score_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    match_id UUID NOT NULL REFERENCES matches(match_id),
+    innings_number INT NOT NULL,
+    batting_team_id UUID NOT NULL REFERENCES teams(team_id),
+    bowling_team_id UUID NOT NULL REFERENCES teams(team_id),
+    total_runs INT DEFAULT 0,
+    total_wickets INT DEFAULT 0,
+    total_overs DECIMAL(4,1) DEFAULT 0.0,
+    extra_runs INT DEFAULT 0,
+    current_batsman_a_id UUID REFERENCES players(player_id),
+    current_batsman_b_id UUID REFERENCES players(player_id),
+    current_bowler_id UUID REFERENCES players(player_id),
+    last_ball_info JSON,
+    required_runs INT DEFAULT 0,
+    required_balls INT DEFAULT 0,
+    run_rate DECIMAL(5,2),
+    required_run_rate DECIMAL(5,2),
+    score_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(match_id, innings_number),
+    INDEX idx_match_scores (match_id)
+);
+
+-- 9. PLAYERS TABLE
+CREATE TABLE players (
+    player_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    external_player_id VARCHAR(50),
+    player_name VARCHAR(100) NOT NULL,
+    display_name VARCHAR(100),
+    team_id UUID REFERENCES teams(team_id),
+    sport_id UUID NOT NULL REFERENCES sports(sport_id),
+    player_type ENUM('BATSMAN', 'BOWLER', 'ALL_ROUNDER', 'WICKET_KEEPER') NOT NULL,
+    batting_style VARCHAR(50),
+    bowling_style VARCHAR(50),
+    nationality VARCHAR(50),
+    date_of_birth DATE,
+    photo_url VARCHAR(255),
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_team_players (team_id),
+    INDEX idx_player_type (player_type)
+);
+
+-- 10. BETTING MARKETS TABLE
+CREATE TABLE betting_markets (
+    market_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    market_name VARCHAR(100) NOT NULL,
+    market_code VARCHAR(50) UNIQUE NOT NULL,
+    display_name VARCHAR(100) NOT NULL,
+    sport_id UUID NOT NULL REFERENCES sports(sport_id),
+    market_type ENUM('MATCH_WINNER', 'TOP_BATSMAN', 'TOP_BOWLER', 'TOTAL_RUNS', 'TOTAL_WICKETS',
+                     'MAN_OF_THE_MATCH', 'TOSS_WINNER', 'INNINGS_RUNS', 'SESSION_RUNS',
+                     'PARTNERSHIP_RUNS', 'PLAYER_PERFORMANCE', 'SPECIAL') NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    min_stake DECIMAL(10,2) DEFAULT 10.00,
+    max_stake DECIMAL(15,2) DEFAULT 100000.00,
+    max_payout DECIMAL(15,2),
+    description TEXT,
+    rules JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_sport_markets (sport_id),
+    INDEX idx_market_type (market_type)
+);
+
+-- 11. MATCH MARKET ODDS TABLE
+CREATE TABLE match_market_odds (
+    odds_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    match_id UUID NOT NULL REFERENCES matches(match_id),
+    market_id UUID NOT NULL REFERENCES betting_markets(market_id),
+    selection_id UUID, -- Could be team_id or player_id based on market
+    selection_type ENUM('TEAM', 'PLAYER', 'OTHER') NOT NULL,
+    selection_name VARCHAR(100) NOT NULL,
+    odds DECIMAL(6,2) NOT NULL,
+    probability DECIMAL(5,2),
+    is_active BOOLEAN DEFAULT TRUE,
+    is_suspended BOOLEAN DEFAULT FALSE,
+    last_updated TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(match_id, market_id, selection_id),
+    INDEX idx_match_market (match_id, market_id),
+    INDEX idx_active_odds (is_active, is_suspended)
+);
+
+-- 12. BETS TABLE
+CREATE TABLE bets (
+    bet_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    bet_slip_id UUID NOT NULL,
+    user_id UUID NOT NULL REFERENCES users(user_id),
+    match_id UUID NOT NULL REFERENCES matches(match_id),
+    market_id UUID NOT NULL REFERENCES betting_markets(market_id),
+    selection_id UUID NOT NULL,
+    selection_name VARCHAR(100) NOT NULL,
+    odds DECIMAL(6,2) NOT NULL,
+    stake DECIMAL(10,2) NOT NULL,
+    potential_win DECIMAL(10,2) GENERATED ALWAYS AS (stake * odds) STORED,
+    bet_status ENUM('PENDING', 'WIN', 'LOSE', 'CANCELLED', 'REFUNDED', 'VOID', 'HALF_WIN', 'HALF_LOSE') DEFAULT 'PENDING',
+    bet_type ENUM('SINGLE', 'MULTIPLE', 'SYSTEM') DEFAULT 'SINGLE',
+    bet_placed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    bet_settled_at TIMESTAMP,
+    settlement_reason TEXT,
+    ip_address VARCHAR(45),
+    device_info VARCHAR(255),
+    bet_source ENUM('WEB', 'MOBILE_WEB', 'IOS', 'ANDROID', 'API') DEFAULT 'WEB',
+    cashout_available BOOLEAN DEFAULT FALSE,
+    cashout_value DECIMAL(10,2),
+    metadata JSON,
+    INDEX idx_user_bets (user_id),
+    INDEX idx_match_bets (match_id),
+    INDEX idx_bet_status (bet_status),
+    INDEX idx_bet_date (bet_placed_at),
+    INDEX idx_bet_slip (bet_slip_id)
+);
+
+-- 13. BET SLIPS TABLE
+CREATE TABLE bet_slips (
+    bet_slip_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(user_id),
+    total_stake DECIMAL(10,2) NOT NULL,
+    total_odds DECIMAL(8,2) NOT NULL,
+    potential_win DECIMAL(10,2) NOT NULL,
+    slip_status ENUM('ACTIVE', 'PLACED', 'CANCELLED', 'EXPIRED') DEFAULT 'ACTIVE',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    placed_at TIMESTAMP,
+    INDEX idx_user_slips (user_id),
+    INDEX idx_slip_status (slip_status)
+);
+
+-- 14. ADMIN USERS TABLE
+CREATE TABLE admin_users (
+    admin_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    username VARCHAR(50) UNIQUE NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    full_name VARCHAR(100) NOT NULL,
+    role ENUM('SUPER_ADMIN', 'ADMIN', 'MODERATOR', 'SUPPORT', 'ACCOUNTANT') NOT NULL,
+    permissions JSON,
+    is_active BOOLEAN DEFAULT TRUE,
+    last_login_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_admin_role (role)
+);
+
+-- 15. AUDIT LOGS TABLE
+CREATE TABLE audit_logs (
+    log_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    admin_id UUID REFERENCES admin_users(admin_id),
+    user_id UUID REFERENCES users(user_id),
+    action_type VARCHAR(50) NOT NULL,
+    table_name VARCHAR(50),
+    record_id VARCHAR(100),
+    old_values JSON,
+    new_values JSON,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_audit_user (user_id),
+    INDEX idx_audit_admin (admin_id),
+    INDEX idx_audit_date (created_at)
+);
+
+-- 16. BONUS/PROMOTIONS TABLE
+CREATE TABLE bonuses (
+    bonus_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    bonus_code VARCHAR(50) UNIQUE NOT NULL,
+    bonus_name VARCHAR(100) NOT NULL,
+    bonus_type ENUM('WELCOME', 'DEPOSIT', 'FREE_BET', 'REFERRAL', 'LOYALTY', 'RELOAD') NOT NULL,
+    description TEXT,
+    min_deposit DECIMAL(10,2),
+    bonus_percentage INT,
+    max_bonus_amount DECIMAL(10,2),
+    wagering_requirement INT DEFAULT 1,
+    valid_from TIMESTAMP NOT NULL,
+    valid_until TIMESTAMP,
+    is_active BOOLEAN DEFAULT TRUE,
+    terms_and_conditions TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_bonus_active (is_active),
+    INDEX idx_bonus_validity (valid_from, valid_until)
+);
+
+-- 17. USER BONUSES TABLE
+CREATE TABLE user_bonuses (
+    user_bonus_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(user_id),
+    bonus_id UUID NOT NULL REFERENCES bonuses(bonus_id),
+    bonus_amount DECIMAL(10,2) NOT NULL,
+    wagered_amount DECIMAL(10,2) DEFAULT 0.00,
+    remaining_wagering DECIMAL(10,2) GENERATED ALWAYS AS (bonus_amount * wagering_requirement - wagered_amount) STORED,
+    status ENUM('ACTIVE', 'USED', 'EXPIRED', 'CANCELLED', 'FORFEITED') DEFAULT 'ACTIVE',
+    credited_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP,
+    INDEX idx_user_bonuses (user_id),
+    INDEX idx_bonus_status (status)
+);
+
+-- 18. PAYMENT METHODS TABLE
+CREATE TABLE payment_methods (
+    method_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    method_name VARCHAR(50) NOT NULL,
+    method_code VARCHAR(20) UNIQUE NOT NULL,
+    display_name VARCHAR(50) NOT NULL,
+    type ENUM('BANK', 'UPI', 'WALLET', 'CARD', 'NET_BANKING') NOT NULL,
+    min_amount DECIMAL(10,2) DEFAULT 100.00,
+    max_amount DECIMAL(15,2) DEFAULT 50000.00,
+    processing_fee_percent DECIMAL(5,2) DEFAULT 0.00,
+    processing_fee_fixed DECIMAL(10,2) DEFAULT 0.00,
+    is_active BOOLEAN DEFAULT TRUE,
+    icon_url VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_payment_active (is_active)
+);
+
+-- 19. DEPOSIT REQUESTS TABLE
+CREATE TABLE deposit_requests (
+    deposit_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(user_id),
+    amount DECIMAL(10,2) NOT NULL,
+    payment_method_id UUID NOT NULL REFERENCES payment_methods(method_id),
+    gateway_transaction_id VARCHAR(100),
+    transaction_status ENUM('PENDING', 'SUCCESS', 'FAILED', 'CANCELLED') DEFAULT 'PENDING',
+    gateway_response JSON,
+    utr_number VARCHAR(100),
+    deposited_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_user_deposits (user_id),
+    INDEX idx_deposit_status (transaction_status)
+);
+
+-- 20. WITHDRAWAL REQUESTS TABLE
+CREATE TABLE withdrawal_requests (
+    withdrawal_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(user_id),
+    amount DECIMAL(10,2) NOT NULL,
+    payment_method_id UUID NOT NULL REFERENCES payment_methods(method_id),
+    account_details JSON,
+    transaction_status ENUM('PENDING', 'APPROVED', 'REJECTED', 'PROCESSING', 'COMPLETED') DEFAULT 'PENDING',
+    admin_notes TEXT,
+    processed_by UUID REFERENCES admin_users(admin_id),
+    processed_at TIMESTAMP,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_user_withdrawals (user_id),
+    INDEX idx_withdrawal_status (transaction_status)
+);
+
+-- 21. NOTIFICATIONS TABLE
+CREATE TABLE notifications (
+    notification_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(user_id),
+    notification_type ENUM('SYSTEM', 'BET', 'DEPOSIT', 'WITHDRAWAL', 'BONUS', 'PROMOTION', 'SECURITY') NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    message TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT FALSE,
+    metadata JSON,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_user_notifications (user_id, is_read)
+);
+
+-- 22. API KEYS TABLE
+CREATE TABLE api_keys (
+    api_key_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    api_key VARCHAR(100) UNIQUE NOT NULL,
+    api_secret VARCHAR(255) NOT NULL,
+    client_name VARCHAR(100) NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    rate_limit_per_minute INT DEFAULT 60,
+    allowed_ips TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_used_at TIMESTAMP,
+    INDEX idx_api_active (is_active)
+);
+
+-- 23. CONFIGURATIONS TABLE
+CREATE TABLE configurations (
+    config_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    config_key VARCHAR(100) UNIQUE NOT NULL,
+    config_value TEXT NOT NULL,
+    config_type ENUM('STRING', 'INTEGER', 'BOOLEAN', 'JSON', 'ARRAY') DEFAULT 'STRING',
+    description TEXT,
+    is_public BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- 24. SESSIONS TABLE
+CREATE TABLE sessions (
+    session_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID REFERENCES users(user_id),
+    admin_id UUID REFERENCES admin_users(admin_id),
+    session_token VARCHAR(255) UNIQUE NOT NULL,
+    ip_address VARCHAR(45),
+    user_agent TEXT,
+    device_info VARCHAR(255),
+    expires_at TIMESTAMP NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_user_sessions (user_id),
+    INDEX idx_token (session_token),
+    INDEX idx_expiry (expires_at)
+);
+
+-- 25. PLAYER PERFORMANCE TABLE
+CREATE TABLE player_performance (
+    performance_id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    player_id UUID NOT NULL REFERENCES players(player_id),
+    match_id UUID NOT NULL REFERENCES matches(match_id),
+    innings_number INT NOT NULL,
+    runs_scored INT DEFAULT 0,
+    balls_faced INT DEFAULT 0,
+    fours INT DEFAULT 0,
+    sixes INT DEFAULT 0,
+    strike_rate DECIMAL(6,2),
+    overs_bowled DECIMAL(4,1) DEFAULT 0.0,
+    runs_conceded INT DEFAULT 0,
+    wickets_taken INT DEFAULT 0,
+    maidens INT DEFAULT 0,
+    economy_rate DECIMAL(6,2),
+    catches INT DEFAULT 0,
+    stumpings INT DEFAULT 0,
+    run_outs INT DEFAULT 0,
+    is_out BOOLEAN DEFAULT FALSE,
+    dismissal_type VARCHAR(50),
+    fielder_id UUID REFERENCES players(player_id),
+    bowler_id UUID REFERENCES players(player_id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(player_id, match_id, innings_number),
+    INDEX idx_player_performance (player_id),
+    INDEX idx_match_performance (match_id)
+);
+
+
+-- Additional Composite Indexes
+CREATE INDEX idx_bets_user_date ON bets(user_id, bet_placed_at DESC);
+CREATE INDEX idx_transactions_user_date ON transactions(user_id, created_at DESC);
+CREATE INDEX idx_matches_sport_date ON matches(sport_id, match_date DESC);
+CREATE INDEX idx_odds_match_active ON match_market_odds(match_id, is_active, is_suspended);
+CREATE INDEX idx_users_referral ON users(referral_code, account_status);
+CREATE INDEX idx_wallet_user_balance ON wallet(user_id, total_balance DESC);
+CREATE INDEX idx_bets_settlement_status ON bets(bet_status, bet_settled_at);
+CREATE INDEX idx_admin_activity ON audit_logs(admin_id, created_at DESC);
+
+
+-- 1. DAILY_REPORT_VIEW
+CREATE VIEW daily_reports AS
+SELECT 
+    DATE(bet_placed_at) AS report_date,
+    COUNT(DISTINCT user_id) AS active_users,
+    COUNT(*) AS total_bets,
+    SUM(stake) AS total_stake,
+    SUM(CASE WHEN bet_status = 'WIN' THEN stake * odds - stake ELSE 0 END) AS total_payout,
+    SUM(CASE WHEN bet_status = 'WIN' THEN stake * odds ELSE 0 END) AS total_winnings,
+    SUM(stake) - SUM(CASE WHEN bet_status = 'WIN' THEN stake * odds - stake ELSE 0 END) AS net_revenue
+FROM bets
+WHERE bet_status IN ('WIN', 'LOSE')
+GROUP BY DATE(bet_placed_at);
+
+-- 2. USER_PERFORMANCE_VIEW
+CREATE VIEW user_performance AS
+SELECT 
+    u.user_id,
+    u.username,
+    u.email,
+    w.total_balance,
+    COUNT(b.bet_id) AS total_bets,
+    SUM(b.stake) AS total_wagered,
+    SUM(CASE WHEN b.bet_status = 'WIN' THEN b.stake * b.odds ELSE 0 END) AS total_won,
+    SUM(CASE WHEN b.bet_status = 'LOSE' THEN b.stake ELSE 0 END) AS total_lost,
+    ROUND(SUM(CASE WHEN b.bet_status = 'WIN' THEN b.stake * b.odds - b.stake ELSE -b.stake END), 2) AS net_profit_loss,
+    ROUND((COUNT(CASE WHEN b.bet_status = 'WIN' THEN 1 END) * 100.0 / COUNT(*)), 2) AS win_rate
+FROM users u
+LEFT JOIN wallet w ON u.user_id = w.user_id
+LEFT JOIN bets b ON u.user_id = b.user_id
+GROUP BY u.user_id, u.username, u.email, w.total_balance;
+
+-- 3. MATCH_PERFORMANCE_VIEW
+CREATE VIEW match_performance AS
+SELECT 
+    m.match_id,
+    m.match_title,
+    m.match_date,
+    t1.team_name AS team_a,
+    t2.team_name AS team_b,
+    COUNT(b.bet_id) AS total_bets,
+    SUM(b.stake) AS total_stake,
+    COUNT(CASE WHEN b.bet_status = 'WIN' THEN 1 END) AS winning_bets,
+    SUM(CASE WHEN b.bet_status = 'WIN' THEN b.stake * b.odds ELSE 0 END) AS total_payout
+FROM matches m
+JOIN teams t1 ON m.team_a_id = t1.team_id
+JOIN teams t2 ON m.team_b_id = t2.team_id
+LEFT JOIN bets b ON m.match_id = b.match_id
+GROUP BY m.match_id, m.match_title, m.match_date, t1.team_name, t2.team_name;
+
+-- 4. ADMIN_DASHBOARD_VIEW
+CREATE VIEW admin_dashboard AS
+SELECT 
+    (SELECT COUNT(*) FROM users WHERE account_status = 'ACTIVE') AS active_users,
+    (SELECT COUNT(*) FROM users WHERE account_status = 'PENDING') AS pending_users,
+    (SELECT SUM(total_balance) FROM wallet) AS total_balance,
+    (SELECT SUM(amount) FROM transactions WHERE transaction_type = 'DEPOSIT' AND transaction_status = 'COMPLETED' AND DATE(created_at) = CURDATE()) AS today_deposits,
+    (SELECT SUM(stake) FROM bets WHERE DATE(bet_placed_at) = CURDATE()) AS today_bets,
+    (SELECT SUM(amount) FROM transactions WHERE transaction_type = 'WITHDRAWAL' AND transaction_status = 'PENDING') AS pending_withdrawals,
+    (SELECT COUNT(*) FROM matches WHERE match_status = 'LIVE') AS live_matches,
+    (SELECT COUNT(*) FROM bets WHERE bet_status = 'PENDING') AS pending_bets;
